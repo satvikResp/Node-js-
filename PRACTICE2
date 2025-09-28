@@ -1,0 +1,103 @@
+// server.js
+
+const express = require('express');
+const app = express();
+const PORT = 3000;
+
+// Middleware to parse JSON bodies in POST requests
+app.use(express.json());
+
+// --- In-memory Data Store ---
+let cards = [
+    { id: 1, suit: "Hearts", value: "Ace" },
+    { id: 2, suit: "Spades", value: "King" },
+    { id: 3, suit: "Diamonds", value: "Queen" }
+];
+let nextId = cards.length + 1; // Used to assign unique IDs to new cards
+
+// --- API Endpoints (Routes) ---
+
+/**
+ * 1. GET /cards - List all playing cards
+ */
+app.get('/cards', (req, res) => {
+    // Respond with the full list of cards
+    res.status(200).json(cards);
+});
+
+/**
+ * 2. GET /cards/:id - Retrieve a specific card by ID
+ */
+app.get('/cards/:id', (req, res) => {
+    // Parse the ID from the URL parameters (it comes as a string)
+    const cardId = parseInt(req.params.id);
+
+    // Find the card in the array
+    const card = cards.find(c => c.id === cardId);
+
+    // Check if the card was found
+    if (card) {
+        res.status(200).json(card);
+    } else {
+        // Respond with 404 Not Found if the ID doesn't exist
+        res.status(404).json({ message: `Card with ID ${cardId} not found.` });
+    }
+});
+
+/**
+ * 3. POST /cards - Add a new card
+ */
+app.post('/cards', (req, res) => {
+    // Extract suit and value from the request body
+    const { suit, value } = req.body;
+
+    // Simple validation
+    if (!suit || !value) {
+        // Respond with 400 Bad Request if essential data is missing
+        return res.status(400).json({ message: "Missing 'suit' or 'value' in request body." });
+    }
+
+    // Create the new card object
+    const newCard = {
+        id: nextId++, // Assign and increment the global ID counter
+        suit,
+        value
+    };
+
+    // Add the new card to the in-memory array
+    cards.push(newCard);
+
+    // Respond with the created card object and 201 Created status
+    // The Location header is a RESTful best practice for successful POST requests
+    res.status(201)
+       .location(`/cards/${newCard.id}`)
+       .json(newCard);
+});
+
+/**
+ * 4. DELETE /cards/:id - Delete a card by ID
+ */
+app.delete('/cards/:id', (req, res) => {
+    const cardId = parseInt(req.params.id);
+
+    // Find the index of the card to be deleted
+    const initialLength = cards.length;
+    
+    // Filter out the card with the matching ID
+    cards = cards.filter(c => c.id !== cardId);
+    
+    // Check if a card was actually removed
+    if (cards.length < initialLength) {
+        // Respond with 204 No Content for a successful deletion
+        res.status(204).send();
+    } else {
+        // Respond with 404 Not Found if the card didn't exist
+        res.status(404).json({ message: `Card with ID ${cardId} not found.` });
+    }
+});
+
+// --- Start the Server ---
+app.listen(PORT, () => {
+    console.log(`Card API server running at http://localhost:${PORT}`);
+    console.log("Endpoints available: GET /cards, GET /cards/:id, POST /cards, DELETE /cards/:id");
+});
